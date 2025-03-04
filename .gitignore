@@ -1,0 +1,11 @@
+# _site
+_cache
+.DS_Store
+.vscode
+deno.json
+deno.lock
+HOLD*.*
+server-mac
+server-linux
+verifyit4.db
+certs

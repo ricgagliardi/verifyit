@@ -1,0 +1,10 @@
+{
+	"dbPath": "./verifyit4.db",
+	"build": "250304",
+	"stage": "local",
+	"version": "4.0.3", 
+	"certs": {
+		"key": "./certs/test.playverifyit.org.key",
+		"cert" : "./certs/test_playverifyit_org/test_playverifyit_org.crt"
+	}
+}
