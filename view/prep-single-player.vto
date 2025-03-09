@@ -1,0 +1,44 @@
+{{ set qs = db.prepare(`
+		select json_group_array(qid) as q_list from (
+			select question_id as qid
+			from topic_question natural join question
+			where topic_name = ?
+			and lower(difficulty) = ?
+			order by random()
+			limit 10
+		)`).get(params.topic_name, params.difficulty)
+}}
+{{ set insertResult = db.prepare(`
+		INSERT INTO "play" (
+			play_mode,
+			topic_name,
+			difficulty,
+			topic_color,
+			room,
+			location,
+			start_time,
+			end_time,
+			current_question,
+			questions
+		)
+	VALUES
+		(
+			'single-player',
+			'${params.topic_name}',
+			'${params.difficulty}',
+			'${params.topic_color}',
+			'n/a',
+			'n/a',
+			'${(new Date()).toISOString()}',
+			NULL,
+			0,
+			'${qs.q_list}'
+		)
+	;
+	select last_insert_rowid() as play_id;
+	`).run()
+	
+}}
+<script>
+	console.log('this is where I redirect to "/display-question?play_id={{ insertResult.lastInsertRowid }}"')
+</script>

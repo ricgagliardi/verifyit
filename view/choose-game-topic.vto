@@ -27,13 +27,14 @@
 			</div>
 		</div>
 <script>
-	const data = {{ db.all(`
+	const data = {{ JSON.stringify(db.prepare(`
 		select topic_name, topic_color
 		from topic 
 		where status_name = 'Production' 
 		order by topic_sequence;
-	`)}}
+	`).all(), null, 2) }}
 </script>
 
 {{ /layout }} 
 
+ 

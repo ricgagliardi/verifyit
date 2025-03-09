@@ -1,0 +1,41 @@
+<!doctype html>
+<h2>WebSocket Test</h2>
+<p>Sends a ping every five seconds</p>
+<div id="output"></div>
+<script>
+  const output = document.querySelector("#output");
+
+	const username = prompt('Enter your Username:') //'Ric Tracer 1'
+	const wsUri = `${location.protocol == 'http:' ? 'ws' : 'wss'}://${location.host}?username=${username}`
+  const websocket = new WebSocket(wsUri);
+  let pingInterval;
+
+  function writeToScreen(message) {
+    output.insertAdjacentHTML("afterbegin", `<p>${message}</p>`);
+  }
+
+  function sendMessage(message) {
+    writeToScreen(`SENT: ${message}`);
+    websocket.send(message);
+  }
+
+  websocket.onopen = (e) => {
+    writeToScreen("CONNECTED");
+    pingInterval = setInterval(() => {
+      sendMessage(JSON.stringify({channel: 'test', data: {asof: (new Date()).toLocaleString(), message: 'test example that will be a record.'}}))
+    }, 5000);
+  };
+
+  websocket.onclose = (e) => {
+    writeToScreen("DISCONNECTED");
+    clearInterval(pingInterval);
+  };
+
+  websocket.onmessage = (e) => {
+    writeToScreen(`RECEIVED: ${e.data}`);
+  };
+
+  websocket.onerror = (e) => {
+    writeToScreen(`ERROR: ${e.data}`);
+  };
+</script>
