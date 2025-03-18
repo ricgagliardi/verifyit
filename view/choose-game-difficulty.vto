@@ -3,7 +3,7 @@
 {{ /function }}
 
 {{ layout "default.vto" }}
-	{{> console.log('boo') }}
+<main>
 	<style>
 		body { background-color: #{{ params.topic_color }} }
 	</style>
@@ -23,9 +23,15 @@
 
 		<div class="d-grid gap-2 col-lg-6 mx-auto" >
 			{{ for d of ['easy', 'medium', 'hard'] }}
-				<a href="/prep-single-player?difficulty={{ d }}&topic_name={{ params.topic_name }}&topic_color={{ params.topic_color }}"
-					class="btn btn-lg grey-btn align-middle mb-3"
-					type="button"
+				<a 	hx-get="/game-room-ready"
+						hx-vals='{
+							"difficulty": "{{ d }}",
+							"topic_name": "{{ params.topic_name }}",
+							"topic_color": "{{ params.topic_color }}",
+							"mode": "{{ params.mode }}"
+						}'
+						class="btn btn-lg grey-btn align-middle mb-3"
+						type="button"
 				>
 					<b class="fs-4">{{ titleCase(d) }}</b>
 					<span class="material-symbols-outlined btn-arrow-icon">arrow_forward_ios</span>
@@ -33,4 +39,5 @@
 			{{ /for }}
 		</div>
 	</div>
+</main>
 {{ /layout }}

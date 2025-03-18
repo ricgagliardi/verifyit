@@ -1,0 +1,77 @@
+{{ if params.mode == 'single-player'}}
+	{{ set qs = db.prepare(`
+			select json_group_array(qid) as q_list from (
+				select question_id as qid
+				from topic_question natural join question
+				where topic_name = ?
+				and lower(difficulty) = ?
+				order by random()
+				limit 10
+			)`).get(params.topic_name, params.difficulty)
+	}} 
+	{{ set gameInsertResult = db.prepare(`
+			INSERT INTO game (
+				game_mode,
+				topic_name,
+				room_name,
+				"location",
+				difficulty,
+				topic_color,
+				start_time,
+				end_time,
+				questions
+			)
+		VALUES
+			(
+				'single-player',
+				'${params.topic_name}',
+				NULL,
+				NULL,
+				'${params.difficulty}',
+				'${params.topic_color}',
+				'${(new Date()).toISOString()}',
+				NULL,
+				'${qs.q_list}'
+			)
+		;
+		select last_insert_rowid();
+		`).run()		
+	}}
+	{{> console.log('game', gameInsertResult.lastInsertRowid)}}
+
+	{{ set playerInsertResult = db.prepare(`
+			INSERT INTO player ( game_id, player_name, current_question, scores )
+			VALUES ( ${gameInsertResult.lastInsertRowid}, '<single-player>', 0, '' )
+			;
+			select last_insert_rowid() as player_id;
+		`).run()		
+	}}
+	{{> console.log('player', playerInsertResult.lastInsertRowid)}}
+
+<main>
+	<script>
+		console.log('params', {{ JSON.stringify(params, null, 3) }})
+		console.log('this is where I redirect to "/display-question?game_id={{ gameInsertResult.lastInsertRowid }}&player_id={{ playerInsertResult.lastInsertRowid }}"')
+	</script>
+	<div class="position-relative p-5 text-center">
+		<h1 class="inter pb-4 md-align-l">The Single-Player game is ready to play!</b></h1>
+		<div class="d-grid gap-2 col-lg-6 mx-auto">
+			<a 	hx-get="/display-question" 
+					hx-vals='{
+						"game_id": {{ gameInsertResult.lastInsertRowid }},
+						"player_id": {{ playerInsertResult.lastInsertRowid }}
+					}' 
+					class="btn btn-lg lime-btn align-middle text-center" type="button">
+				<b class="fs-4" style="width:100%">Start the Game</b>
+			</a>
+		</div>
+	</div>
+</main>
+{{ else }}
+<main>
+	<script>
+		console.warn('So far only single-player is supported.'))
+		console.log('params', {{ JSON.stringify(params, null, 3) }})
+	</script>
+</main>
+{{ /if }}
