@@ -3,7 +3,7 @@
 {{ /function }}
 
 {{ layout "default.vto" }}
-<main>
+<main hx-target="main" hx-select="main" hx-swap="outerHTML">
 	<style>
 		body { background-color: #{{ params.topic_color }} }
 	</style>

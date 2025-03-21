@@ -195,8 +195,8 @@ async function handleReq(req) {
         params,
         config: config.public
       });
-      
-      return new Response(result.content, {
+
+			return new Response(result.content, {
         status: 200,
         headers: {
           "Content-Type": "text/html",

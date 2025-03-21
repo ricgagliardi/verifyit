@@ -11,7 +11,7 @@
 }}
 {{# {{> console.log('data', data) }} #}}
 {{ layout "default.vto" }}
-	<main>
+	<main hx-target="main" hx-select="main" hx-swap="outerHTML">
 		<div class="subnav">
 			<div class="container-fluid" style="display: flex; align-items: center;">
 				<span 
