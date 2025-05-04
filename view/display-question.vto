@@ -119,26 +119,27 @@
 		</div>
 	</div>
 	<script>
-		const delay = t => new Promise(resolve => setTimeout(resolve, t))
-		
-		async function checkIfCorrect(e) {
-			const target = e.target.nodeName == 'BUTTON' ? e.target : e.target.parentNode
-			const choiceNo = target.dataset.idx
-			const isCorrect = choiceNo == "{{ full_question.correct_choice }}"
-			console.log('checkIfCorrect', target.nodeName, choiceNo, isCorrect)
+			//@@@ I made this a var instead of const because it gets redefined by HTMX magic. Should find a better solution.
+			{{# var delay = t => new Promise(resolve => setTimeout(resolve, t)) #}}
+			
+			async function checkIfCorrect(e) {
+				const target = e.target.nodeName == 'BUTTON' ? e.target : e.target.parentNode
+				const choiceNo = target.dataset.idx
+				const isCorrect = choiceNo == "{{ full_question.correct_choice }}"
+				console.log('checkIfCorrect', target.nodeName, choiceNo, isCorrect)
 
-			target.classList.add('animate__animated', 'animate__pulse')
-				await delay(2000)
-			target.classList.add(isCorrect ? 'correct-btn' : 'wrong-btn')
-			if (isCorrect) {
-				target.querySelector('[data-correct]').hidden = false
-				await delay(1000)
-				document.querySelector('#followup').showModal()
+				target.classList.add('animate__animated', 'animate__pulse')
+					await delay(2000)
+				target.classList.add(isCorrect ? 'correct-btn' : 'wrong-btn')
+				if (isCorrect) {
+					target.querySelector('[data-correct]').hidden = false
+					await delay(1000)
+					document.querySelector('#followup').showModal()
+				}
+				else {
+					target.querySelector('[data-incorrect]').hidden = false
+				}
 			}
-			else {
-				target.querySelector('[data-incorrect]').hidden = false
-			}
-		}
 	</script>
 </main>
 {{ /layout }}

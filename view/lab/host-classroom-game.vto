@@ -1,0 +1,290 @@
+{{ set room_is_taken = db.prepare(`
+		select count(*) as 'taken' from game
+		where room_name = ?
+		and end_time is null
+		and start_time > datetime('now', 'localtime', '-01:00' )
+	`).get(params.room)
+}}
+{{> console.log('room_is_taken', room_is_taken.taken) }}
+{{ if room_is_taken.taken == 0 }}
+	{{ set qs = db.prepare(`
+			select json_group_array(qid) as q_list from (
+				select question_id as qid
+				from topic_question natural join question
+				where topic_name = ?
+				and lower(difficulty) = ?
+				order by random()
+				limit 10
+			)`).get(params.topic_name, params.difficulty)
+	}} 
+	{{ set gameInsertResult = db.prepare(`
+			INSERT INTO game (
+				game_mode, topic_name, room_name, "location", difficulty,
+				topic_color, start_time, end_time, questions )
+			VALUES (
+				'classroom', ?, ?, NULL, ?, ?, datetime('now', 'localtime'), NULL, ? )
+		`).run(params.topic_name, params.room, params.difficulty, 
+						params.topic_color, qs.q_list)		
+	}}
+	{{> console.log('game', gameInsertResult.lastInsertRowid)}}
+{{ /if }}
+{{ layout "default.vto" }}
+	<main>
+    <style>
+        {{# body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            background-color: #f5f5f5;
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 0;
+        } #}}
+        
+        .container {
+            background-color: white;
+            padding: 20px;
+            height: 100vh;
+            max-width: 100%;
+        }
+        
+        .green-check {
+            background-color: #7ef17e;
+            color: #fff;
+            border-radius: 50px;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0 auto 15px;
+            font-size: 24px;
+        }
+        
+        .title-text {
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 5px;
+        }
+        
+        .subtitle-text {
+            font-size: 14px;
+            text-align: center;
+            color: #666;
+            margin-bottom: 25px;
+        }
+        
+        .room-name-label {
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .room-name {
+            font-size: 32px;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 25px;
+        }
+        
+        .action-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 25px;
+        }
+        
+        .action-button {
+            background-color: #eeeeee;
+            border: none;
+            border-radius: 50px;
+            padding: 8px 20px;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .player-list {
+            border-top: 1px solid #eee;
+            padding-top: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .player-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+        
+        .player-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .player-number {
+            color: #666;
+        }
+        
+        .player-name {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .emoji {
+            font-size: 18px;
+        }
+        
+        .sleeping-emoji {
+            background-color: #ff6347;
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 14px;
+        }
+        
+        .start-button {
+            background-color: #ffd700;
+            color: black;
+            border: none;
+            border-radius: 50px;
+            padding: 15px;
+            width: 100%;
+            font-size: 16px;
+            font-weight: bold;
+            margin-top: 20px;
+        }
+    </style>
+    <div class="container">
+        <div class="green-check">
+            <i class="fas fa-check"></i>
+        </div>
+        
+        <div class="title-text">Game room is ready</div>
+        <div class="subtitle-text">Share the room code below to participating players so they can join.</div>
+        
+        <div class="room-name-label">ROOM NAME</div>
+        <div class="room-name" id="room-name"></div>
+        
+        <div class="action-buttons">
+            <button class="action-button" onclick="alert('Not implemented yet.')">
+                <i class="fas fa-copy"></i> Copy
+            </button>
+            <button class="action-button" onclick="alert('Not implemented yet.')">
+                <i class="fas fa-share"></i> Share link
+            </button>
+        </div>
+        
+        <div class="player-list">
+            <div class="player-header">
+                <div>Players joined</div>
+                <div id="player-count"></div>
+            </div>
+            
+<!--
+            <div class="player-row">
+                <div class="player-number">Player #1</div>
+                <div class="player-name">
+                    <span class="emoji">🏆</span> Larry Base
+                </div>
+            </div>
+            
+            <div class="player-row">
+                <div class="player-number">Player #2</div>
+                <div class="player-name">
+                    <span class="emoji">🍊</span> Tasha Paner
+                </div>
+            </div>
+            
+            <div class="player-row">
+                <div class="player-number">Player #3</div>
+                <div class="player-name">
+                    <span class="emoji">🐨</span> Barry Jarden
+                </div>
+            </div>
+            
+            <div class="player-row">
+                <div class="player-number">Player #4</div>
+                <div class="player-name">
+                    <span class="emoji">🥬</span> Linda Wewin
+                </div>
+            </div>
+            
+            <div class="player-row">
+                <div class="player-number">Player #5</div>
+                <div class="player-name">
+                    <span class="sleeping-emoji">Z</span>
+                    <span class="emoji">🏆</span> Gea Martin
+                </div>
+            </div>
+-->
+        </div>
+        
+        <button class="start-button" onclick="alert('Not implemented yet.')">Start game</button>
+    </div>
+	<script>
+		let websocket = null
+		const room_is_taken = {{ room_is_taken.taken == 0 ? false : true }}
+		const room_name = "{{ params.room }}"
+		let player_count = 0
+
+		if (room_is_taken) {
+			alert(`Sorry, but the name "${room_name}" is already taken. Go back and pick another name.`)
+		}
+		else {
+			const wsUri = `${location.protocol == 'http:' ? 'ws' : 'wss'}://${location.host}?username={{ params.room }}_host&sources=NONE&channels={{ params.room }}`
+			websocket = new WebSocket(wsUri)
+
+			websocket.onopen = (e) => {
+				console.log('Websocket connected.')
+			}
+			websocket.onclose = (e) => {
+				console.log("DISCONNECTED");
+			}
+			websocket.onmessage = (e) => {
+				console.log(`RECEIVED: ${e.data}`);
+			}
+			websocket.onerror = (e) => {
+				console.error(`ERROR: ${e.data}`);
+			}
+
+			document.getElementById('player-count').innerHTML = `${player_count} players`
+			document.getElementById('room-name').innerHTML = room_name
+		}
+
+	</script>
+
+
+	<pre>
+	host classroom game (new)
+x		confirm room name is available
+x		create game in db
+x		register websocket
+		display players as they come on
+		prompt to start game
+		display players as they progress through questions or quit
+		display when game is finished
+		post results to each player
+		show link to play-classroom-game
+
+	game_id: {{ gameInsertResult?.lastInsertRowid || 'na' }}
+	room_is_taken: {{ room_is_taken.taken }}
+
+	</pre>
+	</main>
+{{ /layout }}
+
+
+http://localhost:3000/lab/host-classroom-game?room=Gotham&mode=classroom&topic_name=Civics&topic_color=D5F382&difficulty=Easy
+{{# 
+#}}
