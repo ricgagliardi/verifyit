@@ -28,7 +28,7 @@ const wsClients = {};
  * @param {URL} url - The request URL
  * @returns {Object} - Parsed parameters
  */
-function gatherParams(url) {
+async function gatherParams(req) {
   function parseParam(v) {
     if (v === "") { return true; }
     else if (v === "true") { return true; } 
@@ -36,11 +36,18 @@ function gatherParams(url) {
     else if (!isNaN(Number(v))) { return +v; }
     return v;
   }
-  
+  const url = new URL(req.url)
   const params = {};
   for (const [key, value] of url.searchParams) {
     params[key] = parseParam(value);
   }
+	if (req.body) {
+		params._body = {}
+		const body = await req.formData()
+		for (const [key, value] of body) {
+			params._body[key] = value
+		}
+	}
   return params;
 }
 
@@ -149,12 +156,12 @@ function mapErrorToHttpResponse(error) {
  */
 async function handleReq(req) {
   try {
-    const url = new URL(req.url);
+    const url = new URL(req.url)
     const filepath = url.pathname === "/" ? '/index' : 
       url.pathname == '/favicon.ico' ? '/assets/logo.png' :
       decodeURIComponent(url.pathname);
 
-    const params = gatherParams(url);
+    const params = await gatherParams(req)
     console.log(req.method, filepath, params);
 
     // WebSocket upgrade handling
