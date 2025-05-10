@@ -27,15 +27,14 @@
 			where: `source_id = ${params.key}`,
 			perms: {
 				write: !!user.author_is_manager,
-			}
+			},
 		},
 		question: {
 			select: {
-				question_id: {hidden: true},
 				title: {class: 'col-md-5', label: 'Title'},
 				_topics: {class: 'col-md-2', sql: "group_concat(topic_name, ', ') as _topics", label: 'Topics', readonly: true},
 				us_state: {class: 'col-md-1', label: 'State'},
-				date_created: {class: 'col-md-2', label: 'Created', type: 'date'},
+				date_created: {class: 'col-md-2', label: 'Created', type: 'date', default: new Date().toLocaleDateString('en-CA')},
 				difficulty: {class: 'col-md-2', options: 'Easy, Medium, Hard, Any'},
 				content: {class: 'col-md-12', trix: true},
 				choices: {class: 'col-md-12', trix: true},
@@ -43,11 +42,17 @@
 				hints: {class: 'col-md-12', trix: true},
 				private_comments: {class: 'col-md-12', trix: true},
 				correct_choice: {class: 'col-md-2'},
-				author_id: {hidden: true},
-				_author_name: {class: 'col-md-2', sql: 'author_name as _author_name', label: 'Author', readonly: true},
-				status_name: {class: 'col-md-2'},
-				_asof: {class: 'col-md-2', type: 'date', label: 'Updated'},
-				_by: {class: 'col-md-2', hidden: true},
+				author_id: {hidden: true, default: user.author_id},
+				_author_name: {
+					class: 'col-md-3', 
+					sql: 'author_name as _author_name', 
+					label: 'Author', 
+					readonly: true, 
+					default: user.author_name
+				},
+				status_name: {class: 'col-md-2', default: 'Proposed'},
+				_asof: {class: 'col-md-3', type: 'date', label: 'Updated', default: new Date().toLocaleDateString('en-CA')},
+				_by: {class: 'col-md-2', hidden: true, default: user.author_id},
 			},
 			from: 'question natural join topic_question natural join author',
 			where: `question_id = ${params.key}`,
@@ -55,6 +60,44 @@
 				write: !!user.author_is_editor
 			},
 		},
+		author: {
+			select: { 
+				author_name: {class: 'col-md-12'}, 
+				author_is_editor: {class: 'col-md-4', type: 'number', attrs: 'min="0" max="1"', label: 'Editor?'},
+				author_is_manager: {class: 'col-md-4', type: 'number', attrs: 'min="0" max="1"', label: 'Manager?'},
+				author_is_active: {class: 'col-md-4', type: 'number', attrs: 'min="0" max="1"', label: 'Active?'},
+			},
+			from: 'author',
+			where: `author_id = ${params.key}`,
+			perms: {
+				write: !!user.author_is_manager,
+			},
+		},
+		status: {
+			select: { 
+				status_name: {class: 'col-md-6'}, 
+			},
+			from: 'status',
+			where: `status_name = ${params.key}`,
+			perms: {
+				write: !!user.author_is_manager,
+			},
+		},
+		topic: {
+			select: { 
+				topic_name: {class: 'col-md-6', label: 'Topic'},
+				topic_color: {class: 'col-md-6', label: 'Color'},
+				topic_sequence: {class: 'col-md-4', label: 'Sequence'},
+				status_name: {class: 'col-md-8', label: 'Status'}, 
+			},
+			from: 'topic',
+			where: `topic_name = ${params.key}`,
+			perms: {
+				write: !!user.author_is_manager,
+			},
+		},
+
+
 		topic_question: {
 			fields: {
 				topic_name: {class: 'col-md-6'},
@@ -68,20 +111,22 @@
 }}
 
 {{ set spec = schema[params.fm] }}
-{{# {{> console.log('spec', spec) }} #}}
+{{> console.log('spec', spec) }}
+{{ if params.key == 'new' }}
+	{{ set data = Object.fromEntries(Object.keys(spec.select).map(k => [k, spec.select[k].default || ''])) }}
+{{ else }}
+	{{ set sql = `
+		select ${Object.keys(spec.select).map( k => spec.select[k].sql || k).join(', ')}
+		from ${spec.from}
+		${spec.where ? 'where ' + spec.where : ''}
+		${spec.group ? 'group by ' + spec.group : ''}`
 
-{{ set sql = `
-	select ${Object.keys(spec.select).map( k => spec.select[k].sql || k).join(', ')}
-	from ${spec.from}
-	${spec.where ? 'where ' + spec.where : ''}
-	${spec.group ? 'group by ' + spec.group : ''}`
+	}}
 
-}}
-
-{{# {{> console.log('sql', sql) }} #}}
-{{ set data = db.prepare(sql).get()
-}}
-{{# {{> console.log('data', data) }} #}}
+	{{> console.log('sql', sql) }}
+	{{ set data = db.prepare(sql).get() }}
+{{ /if }}
+{{> console.log('data', data) }}
 
 {{ if (params.fm == 'question') }}
 	{{# {{> console.log('question perms', spec.perms.write, data.author_id, user.author_id) }} #}}
@@ -215,19 +260,22 @@
             </div>
             
             <div class="dialog-body">
-                <form id="actual-form" hx-post="./save-data?table={{ params.fm }}&where={{ spec.where }}" hx-target="#result" hx-swap="innerHTML" hx-select="main">
+                <form id="actual-form" hx-post="/editor-save-data?table={{ params.fm }}&key={{ params.key }}&where={{ spec.where }}" hx-target="#result" hx-swap="innerHTML" hx-select="main">
                     <div class="row">
 											{{ for n of Object.keys(data) }}
-												{{# {{> console.log('field', n, data[n]) }} #}}
+												{{> console.log('field', n, data[n]) }}
                         <div class="{{ spec.select[n].class || '' }}" {{ spec.select[n].hidden ? 'hidden' : '' }}>
                             <div class="form-group">
                                 <label for="{{ n }}" class="form-label">{{ spec.select[n].label || titleCase(n) }}</label>
-                                <input type="{{ spec.select[n].type || 'text' }}" class="form-control" 
+                                <input type="{{ spec.select[n].type || 'text' }}" 
 																		id="{{ n }}" name="{{ n }}" 
+																		class="form-control"
 																		{{ spec.select[n].trix ? 'hidden' : '' }}
 																		{{ spec.select[n].options ? 'list="{{ n }} -datalist"' : '' }}
 																		{{ spec.select[n].readonly ? 'readonly' : '' }}
-																		value="{{ data[n] |> escape }}" >
+																		{{ spec.select[n].attrs || '' }}
+																		value="{{ data[n] |> escape }}"
+																	>
 															{{ spec.select[n].trix ? `<trix-editor input="${n}"></trix-editor>` : '' }}
 															{{ if spec.select[n].options }}
 																<datalist id="{{ n }}-datalist">

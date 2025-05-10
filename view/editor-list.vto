@@ -23,42 +23,32 @@
 			},
 			from: 'source'
 		},
-		// the rest are not updated yet
 		author: {
-			allow_read: 'author_is_manager',
-			allow_write: 'author_is_manager',
-			column_list: 'author_name, author_is_editor, author_is_manager, author_is_active',
-			joiner: null,
-			form_fields: null
-		},
-		passcode: {
-			allow_read: 'author_is_manager',
-			allow_write: 'author_is_manager',
-			column_list: null,
-			joiner: null,
-			form_fields: null
-		},
-		player: {
-			allow_read: 'author_is_manager',
-			allow_write: null,
-			column_list: null,
-			joiner: null,
-			form_fields: null
+			label: 'Author',
+			select: {
+				author_name: {label: 'Name'},
+				author_is_editor: {label: 'Editor?', sql: "iif(author_is_editor, 'Yes', 'No') as author_is_editor"},
+				author_is_manager: {label: 'Manager?', sql: "iif(author_is_manager, 'Yes', 'No') as author_is_manager"},
+				author_is_active: {label: 'Active?', sql: "iif(author_is_active, 'Yes', 'No')as author_is_active"},
+				author_id: {hidden: true, key: true},
+			},
+			from: 'author',
 		},
 		status: {
-			allow_read: 'author_is_manager',
-			allow_write: 'author_is_manager',
-			column_list: 'status_name',
-			joiner: null,
-			form_fields: null
+			label: 'Status',
+			select: {status_name: {label: 'Name', key: true}},
+			from: 'status'
 		},
 		topic: {
-			allow_read: null,
-			allow_write: 'author_is_manager',
-			column_list: 'topic_name, status_name',
-			joiner: null,
-			form_fields: null
+			label: 'Topic',
+			select: {
+				topic_name: {label: 'Topic', key: true},
+				status_name: {label: 'Status'},
+			},
+			from: 'topic',
 		},
+
+		// the rest are not updated yet
 		topic_question: {
 			allow_read: null,
 			allow_write: 'author_is_manager',
@@ -70,9 +60,6 @@
 }}
 
 
-{{# {{ function titleCase(str) }}
-	{{ str.toLowerCase().replaceAll('_', ' ').replaceAll('-', ' ').trim().split(' ').map( w => w.replace(w[0], w[0].toUpperCase()) ).join(' ') }}
-{{ /function }} #}}
 {{ set auth = atob(params.auth).split('::') }}
 {{ set full_name = auth[0] }}
 {{ set passcode = auth[1]}}
@@ -90,16 +77,18 @@
 }}
 {{ set spec = schema[params.list] }}
 {{# {{> console.log('spec', spec) }} #}}
+{{ set columns = Object.keys(spec.select).filter( k => !spec.select[k].hidden ) }}
+{{ set key_field = Object.keys(spec.select).filter( k => spec.select[k].key )[0] || params.list + '_id' }}
+{{> console.log('key', key_field, 'columns', columns) }}
 
 {{ set sql = `
 	select ${Object.keys(spec.select).map( k => spec.select[k].sql || k).join(', ')}
 	from ${spec.from}
 	${spec.group ? 'group by ' + spec.group : ''}`
 }}
-{{# {{> console.log('sql', sql) }} #}}
+{{> console.log('sql', sql) }}
 
 {{ set data = db.prepare(sql).all() }}
-{{ set columns = Object.keys(spec.select).filter( k => !spec.select[k].hidden ) }}
 
 {{ layout "/default.vto" }} 
 <main hx-target="main" hx-select="main" hx-swap="outerHTML">
@@ -204,7 +193,16 @@
     <div class="container">
 				<div class="d-flex justify-content-between align-items-center mb-3">
 					<h2 class="table-title m-0">{{ spec.label }}</h2>
-					<button class="btn btn-primary btn-sm" onclick="location.reload()">Back to menu</button>
+					<div>
+						<button class="btn btn-secondary btn-sm" 
+								hx-get="/editor-edit?fm={{ params.list }}&key=new&auth={{ params.auth }}"
+								hx-target="#edit-form"
+								hx-swap="innerHTML"
+								onclick="htmx.find('#edit-form').showModal()"
+						>
+							Add new {{ spec.label }}</button>
+						<button class="btn btn-primary btn-sm" onclick="location.reload()">Back to menu</button>
+					</div>
 				</div>
         <div class="table-container">
             <div class="table-responsive">
@@ -228,7 +226,6 @@
                         <tr>
                             <td colspan="6" class="clear-filters-cell">
                                 <button id="clearFilters" class="btn btn-outline-secondary btn-sm me-2">Clear Filters</button>
-                                <button id="addNewBtn" class="btn btn-primary btn-sm">Add New</button>
                             </td>
                         </tr>
                     </tfoot>
@@ -266,7 +263,7 @@
                 
                 data.forEach(item => {
                     const row = document.createElement('tr');
-										row.setAttribute('hx-get', `./edit?fm={{ params.list }}&key=${item.{{ params.list }}_id}&auth={{ params.auth }}`)
+										row.setAttribute('hx-get', `/editor-edit?fm={{ params.list }}&key='${item.{{ key_field }} }'&auth={{ params.auth }}`)
               
                     row.innerHTML = `
 											{{ for col of columns }}
@@ -332,12 +329,6 @@
 								{{ col }}Filter.value = ''
 							{{ /for }}
                 filterAndSortData();
-            });
-
-            // Add New button
-            const addNewBtn = document.getElementById('addNewBtn');
-            addNewBtn.addEventListener('click', () => {
-                alert('Add New Item functionality would open a form here.');
             });
             
             // Sort header click events
