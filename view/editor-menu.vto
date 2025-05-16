@@ -21,6 +21,7 @@
 		source: user => true,
 		author: user => user.author_is_manager,
 		topic: user => user.author_is_manager,
+		topic_question: user => true,
 		status: user => user.author_is_manager,
 	}
 }}

@@ -17,6 +17,8 @@
 	and author_is_active`).get(full_name)
 }}
 {{# {{> console.log('user', user) }} #}}
+{{ set status_list = db.prepare("select group_concat(status_name, ', ') as vals from status").get().vals }}
+
 {{ set schema = {
 		source: {
 			select: { 
@@ -31,9 +33,12 @@
 		},
 		question: {
 			select: {
-				title: {class: 'col-md-5', label: 'Title'},
-				_topics: {class: 'col-md-2', sql: "group_concat(topic_name, ', ') as _topics", label: 'Topics', readonly: true},
-				us_state: {class: 'col-md-1', label: 'State'},
+				title: {class: 'col-md-6', label: 'Title'},
+				_topics: {class: 'col-md-2', 
+					sql: "ifnull(group_concat(topic_name, ', '), '[none]') as _topics", 
+					label: 'Topics', readonly: true,
+					child_link: `/editor-list?list=topic_question&key=${params.key}&parent=question&auth=${params.auth}`,
+				},
 				date_created: {class: 'col-md-2', label: 'Created', type: 'date', default: new Date().toLocaleDateString('en-CA')},
 				difficulty: {class: 'col-md-2', options: 'Easy, Medium, Hard, Any'},
 				content: {class: 'col-md-12', trix: true},
@@ -50,11 +55,18 @@
 					readonly: true, 
 					default: user.author_name
 				},
-				status_name: {class: 'col-md-2', default: 'Proposed'},
+				status_name: {
+					class: 'col-md-2', default: 'Proposed',
+					options: status_list,
+				},
+				us_state: {
+					class: 'col-md-2', label: 'State', default: '',
+					options: ',AL,AK,AZ,AR,CA,CO,CT,DE,DC,FL,GA,HI,ID,IL,IN,IA,KS,KY,LA,ME,MD,MA,MI,MN,MS,MO,MT,NE,NV,NH,NJ,NM,NY,NC,ND,OH,OK,OR,PA,RI,SC,SD,TN,TX,UT,VT,VA,WA,WV,WI,WY'
+				},
 				_asof: {class: 'col-md-3', type: 'date', label: 'Updated', default: new Date().toLocaleDateString('en-CA')},
 				_by: {class: 'col-md-2', hidden: true, default: user.author_id},
 			},
-			from: 'question natural join topic_question natural join author',
+			from: 'question natural join author left outer natural join topic_question',
 			where: `question_id = ${params.key}`,
 			perms: {
 				write: !!user.author_is_editor
@@ -96,15 +108,18 @@
 				write: !!user.author_is_manager,
 			},
 		},
-
-
 		topic_question: {
-			fields: {
-				topic_name: {class: 'col-md-6'},
-				question_id: {class: 'col-md-6'},
+			select: {
+				topic_name: {
+					class: 'col-md-4', 
+					options: db.prepare("select group_concat(topic_name, ', ') as vals from topic").get().vals,
+				},
+				question_id: {hidden: true, default: params.fkey},
 			},
+			from: 'topic_question',
+			where: `topic_question_id = ${params.key}`,
 			perms: {
-				write: !!user.author_is_manager
+				write: true
 			},
 		},
 	}
@@ -266,24 +281,56 @@
 												{{> console.log('field', n, data[n]) }}
                         <div class="{{ spec.select[n].class || '' }}" {{ spec.select[n].hidden ? 'hidden' : '' }}>
                             <div class="form-group">
-                                <label for="{{ n }}" class="form-label">{{ spec.select[n].label || titleCase(n) }}</label>
+                                <label for="{{ n }}" class="form-label">
+																	{{ if spec.select[n].child_link }} 
+																		{{# note the href below is to fool bootstrap into making it blue and underlined #}}
+																		<a 	hx-get="{{ spec.select[n].child_link }}" 
+																				href="#"
+																				hx-target="main"
+																				hx-select="main"
+																				hx-on:click="document.getElementById('edit-child-form').showModal()"
+																		>
+																			See {{spec.select[n].label || titleCase(n) }}
+																		</a>
+																	{{ else }}
+																		{{ spec.select[n].label || titleCase(n) }}
+																	{{ /if }}
+																</label>
+																{{ if spec.select[n].options }}
+																		<select class="form-select" id="{{ n }}" name="{{ n }}">
+																		{{ for i of spec.select[n].options.split(/,\s*/) }}
+																			<option value="{{ i }}" {{ i == data[n] ? 'selected' : '' }}>{{ i }}</option>
+																		{{ /for }}
+																		</select>
+																{{ else }}
+																	<input type="{{ spec.select[n].type || 'text' }}" 
+																			id="{{ n }}" name="{{ n }}" 
+																			class="form-control"
+																			{{ spec.select[n].trix ? 'hidden' : '' }}
+																			{{ spec.select[n].readonly ? 'readonly' : '' }}
+																			{{ spec.select[n].attrs || '' }}
+																			value="{{ data[n] |> escape }}"
+																		>
+																	{{ spec.select[n].trix ? `<trix-editor input="${n}"></trix-editor>` : '' }}
+																{{ /if }}
+{{# 
                                 <input type="{{ spec.select[n].type || 'text' }}" 
 																		id="{{ n }}" name="{{ n }}" 
 																		class="form-control"
 																		{{ spec.select[n].trix ? 'hidden' : '' }}
-																		{{ spec.select[n].options ? 'list="{{ n }} -datalist"' : '' }}
+																		{{ spec.select[n].options ? `list="${n}-datalist"` : '' }}
 																		{{ spec.select[n].readonly ? 'readonly' : '' }}
 																		{{ spec.select[n].attrs || '' }}
 																		value="{{ data[n] |> escape }}"
 																	>
-															{{ spec.select[n].trix ? `<trix-editor input="${n}"></trix-editor>` : '' }}
 															{{ if spec.select[n].options }}
-																<datalist id="{{ n }}-datalist">
+																<datalist id="{{ n + '-datalist' }}">
 																{{ for i of spec.select[n].options.split(/,\s*/) }}
 																	<option value="{{ i }}">
 																{{ /for }}
 																</datalist>
 															{{ /if }}
+ #}}
                             </div>
                         </div>
 											{{ /for }}
@@ -300,12 +347,16 @@
             </div>
 								<div id="result" class="text-end"></div>
         </div>
+			<dialog id="edit-child-form" style="max-width:70%">
+			</dialog>
 		<script>
 			console.log('perms', {{ spec.perms.write }})
 			if ({{ !spec.perms.write }}) {
 				htmx.find('#saveButton').setAttribute('disabled', 'disabled')
 				htmx.find('#saveButton').setAttribute('value', 'No Save Allowed')
 			}
+			{{# htmx.onLoad( () => htmx.on("#edit-child-from", "load", function(evt){ alert('boo') }, { once: true }) ) #}}
+
 		</script>
 
 </main>
