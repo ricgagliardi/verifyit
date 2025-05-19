@@ -1,26 +1,72 @@
-{{> console.log('hello from save_data. params', params) }}
+{{ set auth = atob(params.auth).split('::') }}
+{{ set full_name = auth[0] }}
+{{ set schema = {
+		question: {
+			extend: {
+				_asof: (new Date()).toLocaleString('sv'),
+				_by: full_name,
+			},
+		},
+		source: {
+			extend: {
+				_asof: (new Date()).toLocaleString('sv'),
+				_by: full_name,
+			},
+		},
+		author: {},
+		status: {},
+		topic: {
+			extend: {
+				_asof: (new Date()).toLocaleString('sv'),
+				_by: full_name,
+			},
+		},
+		topic_question: {},
+} }}
+{{ set extendedBody = Object.assign(params._body, schema[params.table].extend || {}) }}
+{{ set sqlCols = Object.keys(extendedBody) }}
+{{> console.log('extendedBody', extendedBody, 'sqlCols', sqlCols) }}
 {{ if params.key == 'new' }}
 	{{ set statement = `
 		insert into "${params.table}"
-		(${Object.keys(params._body).filter( k => !k.startsWith('_') ).join(', ')})
-		values (${Object.keys(params._body).filter( k => !k.startsWith('_') ).map( k => '?').join(', ')})
+		(${sqlCols.join(', ')})
+		values (${sqlCols.map( k => '?').join(', ')})
 	`}}
 {{ else }}
 	{{ set statement = `
 		update "${params.table}"
-		set (${Object.keys(params._body).filter( k => !k.startsWith('_') ).join(', ')})
-		= (${Object.keys(params._body).filter( k => !k.startsWith('_') ).map( k => '?').join(', ')})
+		set (${sqlCols.join(', ')})
+		= (${sqlCols.map( k => '?').join(', ')})
 		where ${params.where}
 	`}}
 {{ /if }}
-{{> console.log('statement', statement, 'values', Object.keys(params._body).filter( k => !k.startsWith('_') ).map( k => params._body[k] )) }}
+{{# 
+{{ if params.key == 'new' }}
+	{{ set statement = `
+		insert into "${params.table}"
+		(${Object.keys(Object.assign(params._body, extension)).filter( k => !k.startsWith('_') ).join(', ')})
+		values (${Object.keys(Object.assign(params._body, extension)).filter( k => !k.startsWith('_') ).map( k => '?').join(', ')})
+	`}}
+{{ else }}
+	{{ set statement = `
+		update "${params.table}"
+		set (${Object.keys(Object.assign(params._body, extension)).filter( k => !k.startsWith('_') ).join(', ')})
+		= (${Object.keys(Object.assign(params._body, extension)).filter( k => !k.startsWith('_') ).map( k => '?').join(', ')})
+		where ${params.where}
+	`}}
+{{ /if }}
+ #}}
+{{ set sqlVals = sqlCols.map( k => extendedBody[k] ) }}
+{{> console.log('statement', statement, 'values', sqlVals) }}
 
-{{ set result = db.prepare(statement).run(...Object.keys(params._body).filter( k => !k.startsWith('_') ).map( k => params._body[k] )) }}
+{{ set result = db.prepare(statement).run(...sqlVals) }}
 {{> console.log('save result', result) }}
 {{ layout "default.vto" }} 
 <main>
 	{{ if result.changes && result.changes > 0 }}
-		<h4 class="text-success">Saved!</h4>
+		<h5 class="text-success" 
+				hx-get="/editor-list?list={{ params.table }}&auth={{ params.auth }}" 
+				hx-trigger="load delay:1000ms">Saved!</h5>
 	{{ else }}
 		<h1 class="text-danger">Save FAILED</h1>
 	{{ /if }}

@@ -42,10 +42,12 @@
 		topic: {
 			label: 'Topic',
 			select: {
+				topic_sequence: {label: 'Seq.',  type: 'number'},
 				topic_name: {label: 'Topic', key: true},
 				status_name: {label: 'Status'},
 			},
 			from: 'topic',
+			order: 'topic_sequence'
 		},
 		topic_question: {
 			label: 'Topic/Question',
@@ -81,6 +83,11 @@
 {{ set columns = Object.keys(spec.select).filter( k => !spec.select[k].hidden ) }}
 {{ set key_field = Object.keys(spec.select).filter( k => spec.select[k].key )[0] || params.list + '_id' }}
 {{> console.log('key', key_field, 'columns', columns) }}
+
+{{ if !!params.delete }}
+	{{ set delete_result = db.prepare(`delete from ${params.list} where ${key_field} = ${params.delete}`).run() }}
+	{{> console.log('DELETE', params.list, key_field, delete_result) }}
+{{ /if }}
 
 {{ set sql = `
 	select ${Object.keys(spec.select).map( k => spec.select[k].sql || k).join(', ')}
@@ -292,12 +299,19 @@
             function filterAndSortData() {
 							{{# console.log('filterAndSortData') #}}
 							{{ for col of columns }}
-								const {{ col }}Term = {{ col }}Filter.value.toLowerCase()
+								const {{ col }}Term = {{ col }}Filter.value.toString().toLowerCase().replaceAll('-', '').replaceAll(' ', '')
 							{{ /for }}
                 
                 let filteredData = jsonData.filter(item => {
 									{{ for col of columns }}
-										const {{ col }}Matches = item.{{ col }}.toLowerCase().includes({{ col }}Term)
+										const {{ col }}Matches = item.{{ col }}.toString().toLowerCase().replaceAll('-', '').replaceAll(' ', '').includes({{ col }}Term)
+{{# 
+										{{ if typeof col == 'number'}}
+											const {{ col }}Matches = item.{{ col }}.toLowerCase().replaceAll('-', '').replaceAll(' ', '').includes({{ col }}Term)
+										{{ else }}
+												const {{ col }}Matches = item.{{ col }}.toLowerCase().replaceAll('-', '').replaceAll(' ', '').includes({{ col }}Term)
+										{{ /if }}
+ #}}
 									{{ /for }}
 									{{ set allMatches = columns.map( n => n + 'Matches').join(' && ') }}
                     return {{ allMatches }}
@@ -309,13 +323,13 @@
                     switch(sortColumn) {
 											{{ for col of columns }}
                         case '{{ col }}':
-                            valueA = a.{{ col }}.toLowerCase();
-                            valueB = b.{{ col }}.toLowerCase();
+                            valueA = a.{{ col }}.toString().toLowerCase();
+                            valueB = b.{{ col }}.toString().toLowerCase();
                             break;
 											{{ /for }}
                         default:
-                            valueA = a.{{ columns[0] }}.toLowerCase();
-                            valueB = b.{{ columns[0] }}.toLowerCase();
+                            valueA = a.{{ columns[0] }}.toString().toLowerCase();
+                            valueB = b.{{ columns[0] }}.toString().toLowerCase();
                     }
                     
                     if (valueA < valueB) {
