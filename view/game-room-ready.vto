@@ -6,9 +6,9 @@
 				where topic_name = ?
 				and lower(difficulty) = ?
 				order by random()
-				limit 10
+				limit 2
 			)`).get(params.topic_name, params.difficulty)
-	}} 
+	}}`
 	{{ set gameInsertResult = db.prepare(`
 			INSERT INTO game (
 				game_mode, topic_name, room_name, "location", difficulty,
@@ -44,7 +44,7 @@
 {{ else }}
 <main>
 	<script>
-		console.warn('So far only single-player is supported.'))
+		console.warn('So far only single-player is supported.')
 		console.log('params', {{ JSON.stringify(params, null, 3) }})
 	</script>
 </main>
