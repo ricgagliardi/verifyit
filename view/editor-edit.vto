@@ -47,16 +47,16 @@
 				hints: {class: 'col-md-12', trix: true},
 				private_comments: {class: 'col-md-12', trix: true},
 				correct_choice: {class: 'col-md-2'},
-				author_id: {hidden: true, default: user.author_id},
+				author_id: {hidden: true, sql: 'q.author_id as author_id', default: user.author_id},
 				author_name: {
-					class: 'col-md-3', 
-					sql: 'author_name as author_name', 
+					class: 'col-md-4', 
+					sql: 'a.author_name as author_name', 
 					label: 'Author', 
 					readonly: true, 
 					default: user.author_name
 				},
 				status_name: {
-					class: 'col-md-2', default: 'Proposed',
+					class: 'col-md-3', default: 'Proposed',
 					options: status_list,
 				},
 				us_state: {
@@ -64,9 +64,16 @@
 					options: ',AL,AK,AZ,AR,CA,CO,CT,DE,DC,FL,GA,HI,ID,IL,IN,IA,KS,KY,LA,ME,MD,MA,MI,MN,MS,MO,MT,NE,NV,NH,NJ,NM,NY,NC,ND,OH,OK,OR,PA,RI,SC,SD,TN,TX,UT,VT,VA,WA,WV,WI,WY'
 				},
 				_asof: {class: 'col-md-3', type: 'date', label: 'Updated', default: new Date().toLocaleDateString('en-CA')},
-				_by: {class: 'col-md-2', hidden: true, label: 'By', default: user.author_id},
+				_by: {hidden: true, default: user.author_id},
+				by_name: {
+					class: 'col-md-4', 
+					label: 'By', 
+					sql: "ifnull(b.author_name, '[unknown]') as by_name", 
+					readonly: true, 
+					default: user.author_name
+				},
 			},
-			from: 'question natural join author left outer natural join topic_question',
+			from: 'question q natural join author a left outer natural join topic_question left outer join author b on _by = b.author_id',
 			where: `question_id = ${params.key}`,
 			perms: {
 				write: !!user.author_is_editor
@@ -138,7 +145,7 @@
 
 	}}
 
-	{{# {{> console.log('sql', sql) }} #}}
+	{{> console.log('edit sql', sql) }}
 	{{ set data = db.prepare(sql).get() }}
 {{ /if }}
 {{# {{> console.log('data', data) }} #}}

@@ -90,7 +90,7 @@
 			{{ for idx, choice of question_choices }}
 				{{ set numChoices = numChoices + 1 }}
 				{{console.log(numChoices)}}
-				<button class="btn btn-lg mb-2 align-middle" type="button"
+				<button class="vi-btn btn-lg mb-2 align-middle" type="button"
 								style="width:100%; background-color: #{{ my_game.topic_color}}"
 								onclick="checkIfCorrect(event)"  data-idx="{{ idx + 1 }}">
 					<span data-correct hidden class="material-symbols-outlined">check_circle</span>
@@ -110,13 +110,13 @@
 					</div>
 					{{ if my_game.current_question == 9 }}
 						<button hx-get="results" hx-vals='{"player_id": {{ params.player_id }}, "score": score }'
-								class="btn btn-lg mb-2 " style="width:80%" type="button">
+								class="vi-btn btn-lg mb-2 " style="width:80%" type="button">
 							<b class="fs-4">View Results</b>
 							<span class="material-symbols-outlined btn-arrow-icon">arrow_forward_ios</span>
 						</button>
 					{{ else }}
 						<button onclick="nextQuestion({{ params.player_id }})"
-								class="btn btn-lg mb-2 " style="width:80%" type="button">
+								class="vi-btn btn-lg mb-2 " style="width:80%" type="button">
 							<b class="fs-4">Next Question</b>
 							<span class="material-symbols-outlined btn-arrow-icon">arrow_forward_ios</span>
 						</button>
