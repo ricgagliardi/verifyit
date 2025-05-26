@@ -28,7 +28,7 @@ const wsClients = {};
  * @param {URL} url - The request URL
  * @returns {Object} - Parsed parameters
  */
-async function gatherParams(req) {
+function gatherParams(url) {
   function parseParam(v) {
     if (v === "") { return true; }
     else if (v === "true") { return true; } 
@@ -36,18 +36,11 @@ async function gatherParams(req) {
     else if (!isNaN(Number(v))) { return +v; }
     return v;
   }
-  const url = new URL(req.url)
+  
   const params = {};
   for (const [key, value] of url.searchParams) {
     params[key] = parseParam(value);
   }
-	if (req.body) {
-		params._body = {}
-		const body = await req.formData()
-		for (const [key, value] of body) {
-			params._body[key] = value
-		}
-	}
   return params;
 }
 
@@ -67,48 +60,49 @@ function prepWebSocket(req, params) {
     }
 
     const { socket, response } = Deno.upgradeWebSocket(req);
-    
+
     socket.onopen = () => {
       try {
-        socket.username = params.username;
-        socket.channels = params.channels == '<none>' ? [] : params.channels.split(/\s*,\s*/);
-        socket.sources = params.sources == '<none>' ? [] : params.sources.split(/\s*,\s*/);
-        wsClients[params.username] = socket;
-        console.log("CONNECTED", params.username, socket.channels, socket.sources, Object.keys(wsClients));
+        socket.username = params.username || 'anonymous';
+        socket.channels = params.channels ? params.channels.split(/\s*,\s*/) : [];
+        socket.sources = params.sources ? params.sources.split(/\s*,\s*/) : [];
+        wsClients[socket.username] = socket;
+        console.log("CONNECTED", socket.username, socket.channels, socket.sources, Object.keys(wsClients));
       } catch (error) {
         console.error("Error in WebSocket onopen handler:", error);
         socket.close(1011, "Server error during connection setup");
       }
     };
-    
     socket.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        data.source = socket.username;
-        console.log('RECEIVED: ', data);
-        
-        Object.values(wsClients).forEach(client => {
-          if (client.username !== socket.username && client.readyState === 1) { // Check if socket is OPEN
-            console.log('  checking source', data.source, 'channel', data.channel);
-            console.log('    client sources', client.sources, 'channels', client.channels);
+        try {
+          const data = JSON.parse(event.data);
+          data.source = socket.username;
+          data.channel=params.channels
+          console.log('RECEIVED: ', event.data);
+          
+          Object.values(wsClients).forEach(client => {
             
-            if (client.sources.includes(data.source) || client.channels.includes(data.channel)) {
-              console.log('    matched. sending to ', client.username);
-              try {
-                client.send(JSON.stringify(data));
-              } catch (sendError) {
-                console.error(`Error sending to client ${client.username}:`, sendError);
+            if (client.username !== socket.username && client.readyState === 1) { // Check if socket is OPEN
+              console.log(' checking source', data.source, 'channel', data.channel);
+              console.log(' client sources', client.sources, 'channels', client.channels);
+              
+              if (client.sources.includes(data.source) || client.channels.includes(data.channel)) {
+                console.log(' matched. sending to ', client.username, client.channels);
+                try {
+                  client.send(JSON.stringify(data));
+                } catch (sendError) {
+                  console.error(`Error sending to client ${client.username}:`, sendError);
+                }
+              } else {
+                console.log(' no match.');
               }
-            } else {
-              console.log('    no match.');
             }
-          }
-        });
-      } catch (error) {
-        console.error("Error processing WebSocket message:", error);
-        // Don't close the socket on message processing errors - just log them
-      }
-    };
+          });
+        } catch (error) {
+          console.error("Error processing WebSocket message:", error);
+          // Don't close the socket on message processing errors - just log them
+        }
+      };
     
     socket.onclose = (event) => {
       delete wsClients[socket.username];
@@ -156,17 +150,47 @@ function mapErrorToHttpResponse(error) {
  */
 async function handleReq(req) {
   try {
-    const url = new URL(req.url)
+    const url = new URL(req.url);
     const filepath = url.pathname === "/" ? '/index' : 
       url.pathname == '/favicon.ico' ? '/assets/logo.png' :
       decodeURIComponent(url.pathname);
 
-    const params = await gatherParams(req)
+    const params = gatherParams(url);
     console.log(req.method, filepath, params);
 
     // WebSocket upgrade handling
     if (req.headers.get("upgrade")?.toLowerCase() === "websocket") {
       return prepWebSocket(req, params);
+    }
+
+    if (url.pathname === "/page1.html") {
+      try {
+        const file = await Deno.readTextFile("./page1.html");
+        return new Response(file, {
+          status: 200,
+          headers: {
+            "Content-Type": "text/html",
+          }
+        });
+      } catch (error) {
+        console.error(`Error serving index.html:`, error);
+        return new Response("404 Not Found", { status: 404 });
+      }
+    }
+
+    if (url.pathname === "/page2.html") {
+      try {
+        const file = await Deno.readTextFile("./page2.html");
+        return new Response(file, {
+          status: 200,
+          headers: {
+            "Content-Type": "text/html",
+          }
+        });
+      } catch (error) {
+        console.error(`Error serving index.html:`, error);
+        return new Response("404 Not Found", { status: 404 });
+      }
     }
 
     // Static file serving
