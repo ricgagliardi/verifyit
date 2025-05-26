@@ -17,8 +17,6 @@
 	and author_is_active`).get(full_name)
 }}
 {{# {{> console.log('user', user) }} #}}
-{{ set status_list = db.prepare("select group_concat(status_name, ', ') as vals from status").get().vals }}
-
 {{ set schema = {
 		source: {
 			select: { 
@@ -33,12 +31,9 @@
 		},
 		question: {
 			select: {
-				title: {class: 'col-md-6', label: 'Title'},
-				topics: {class: 'col-md-2', 
-					sql: "ifnull(group_concat(topic_name, ', '), '[none]') as topics", 
-					label: 'Topics', readonly: true,
-					child_link: `/editor-list?list=topic_question&key=${params.key}&parent=question&auth=${params.auth}`,
-				},
+				title: {class: 'col-md-5', label: 'Title'},
+				_topics: {class: 'col-md-2', sql: "group_concat(topic_name, ', ') as _topics", label: 'Topics', readonly: true},
+				us_state: {class: 'col-md-1', label: 'State'},
 				date_created: {class: 'col-md-2', label: 'Created', type: 'date', default: new Date().toLocaleDateString('en-CA')},
 				difficulty: {class: 'col-md-2', options: 'Easy, Medium, Hard, Any'},
 				content: {class: 'col-md-12', trix: true},
@@ -115,25 +110,22 @@
 				write: !!user.author_is_manager,
 			},
 		},
+
+
 		topic_question: {
-			select: {
-				topic_name: {
-					class: 'col-md-4', 
-					options: db.prepare("select group_concat(topic_name, ', ') as vals from topic").get().vals,
-				},
-				question_id: {hidden: true, default: params.fkey},
+			fields: {
+				topic_name: {class: 'col-md-6'},
+				question_id: {class: 'col-md-6'},
 			},
-			from: 'topic_question',
-			where: `topic_question_id = ${params.key}`,
 			perms: {
-				write: true
+				write: !!user.author_is_manager
 			},
 		},
 	}
 }}
 
 {{ set spec = schema[params.fm] }}
-{{# {{> console.log('spec', spec) }} #}}
+{{> console.log('spec', spec) }}
 {{ if params.key == 'new' }}
 	{{ set data = Object.fromEntries(Object.keys(spec.select).map(k => [k, spec.select[k].default || ''])) }}
 {{ else }}
@@ -148,7 +140,7 @@
 	{{> console.log('edit sql', sql) }}
 	{{ set data = db.prepare(sql).get() }}
 {{ /if }}
-{{# {{> console.log('data', data) }} #}}
+{{> console.log('data', data) }}
 
 {{ if (params.fm == 'question') }}
 	{{# {{> console.log('question perms', spec.perms.write, data.author_id, user.author_id) }} #}}
@@ -282,44 +274,30 @@
             </div>
             
             <div class="dialog-body">
-                <form id="actual-form" hx-post="/editor-save-data?table={{ params.fm }}&key={{ params.key }}&where={{ spec.where }}&auth={{ params.auth }}" hx-target="#result" hx-swap="innerHTML" hx-select="main">
+                <form id="actual-form" hx-post="/editor-save-data?table={{ params.fm }}&key={{ params.key }}&where={{ spec.where }}" hx-target="#result" hx-swap="innerHTML" hx-select="main">
                     <div class="row">
 											{{ for n of Object.keys(data) }}
-												{{# {{> console.log('field', n, data[n]) }} #}}
+												{{> console.log('field', n, data[n]) }}
                         <div class="{{ spec.select[n].class || '' }}" {{ spec.select[n].hidden ? 'hidden' : '' }}>
                             <div class="form-group">
-                                <label for="{{ n }}" class="form-label">
-																	{{ if spec.select[n].child_link }} 
-																		{{# note the href below is to fool bootstrap into making it blue and underlined #}}
-																		<a 	hx-get="{{ spec.select[n].child_link }}" 
-																				href="#"
-																				hx-target="main"
-																				hx-select="main"
-																				hx-on:click="document.getElementById('edit-child-form').showModal()"
-																		>
-																			See {{spec.select[n].label || titleCase(n) }}
-																		</a>
-																	{{ else }}
-																		{{ spec.select[n].label || titleCase(n) }}
-																	{{ /if }}
-																</label>
-																{{ if spec.select[n].options }}
-																		<select class="form-select" id="{{ n }}" name="{{ n }}">
-																		{{ for i of spec.select[n].options.split(/,\s*/) }}
-																			<option value="{{ i }}" {{ i == data[n] ? 'selected' : '' }}>{{ i }}</option>
-																		{{ /for }}
-																		</select>
-																{{ else }}
-																	<input type="{{ spec.select[n].type || 'text' }}" 
-																			id="{{ n }}" name="{{ n }}" 
-																			class="form-control"
-																			{{ spec.select[n].trix ? 'hidden' : '' }}
-																			{{ spec.select[n].readonly ? 'readonly disabled' : '' }}
-																			{{ spec.select[n].attrs || '' }}
-																			value="{{ data[n] |> escape }}"
-																		>
-																	{{ spec.select[n].trix ? `<trix-editor input="${n}"></trix-editor>` : '' }}
-																{{ /if }}
+                                <label for="{{ n }}" class="form-label">{{ spec.select[n].label || titleCase(n) }}</label>
+                                <input type="{{ spec.select[n].type || 'text' }}" 
+																		id="{{ n }}" name="{{ n }}" 
+																		class="form-control"
+																		{{ spec.select[n].trix ? 'hidden' : '' }}
+																		{{ spec.select[n].options ? 'list="{{ n }} -datalist"' : '' }}
+																		{{ spec.select[n].readonly ? 'readonly' : '' }}
+																		{{ spec.select[n].attrs || '' }}
+																		value="{{ data[n] |> escape }}"
+																	>
+															{{ spec.select[n].trix ? `<trix-editor input="${n}"></trix-editor>` : '' }}
+															{{ if spec.select[n].options }}
+																<datalist id="{{ n }}-datalist">
+																{{ for i of spec.select[n].options.split(/,\s*/) }}
+																	<option value="{{ i }}">
+																{{ /for }}
+																</datalist>
+															{{ /if }}
                             </div>
                         </div>
 											{{ /for }}
@@ -328,22 +306,13 @@
             </div>
             
             <div class="dialog-footer">
-	              <button class="btn btn-danger" id="deleteButton" 
-												hx-get="/editor-list?list={{ params.fm }}&auth={{ params.auth }}&delete={{ params.key }}" 
-								>
-									Delete
-								</button>
-  							<span id="result"></span>
-	              <div class="actions">
-									{{ if params.fm == 'question' }}
-                    <a  class="btn btn-outline-primary" target="_blank"
-												href="/display-question?question_id={{ params.key }}">Show in game</a>
-									{{ /if }}
-                    <button class="btn btn-secondary" id="cancelButton" 
-														onclick="document.getElementById('edit-form').close()">Cancel</button>
+                <button class="btn btn-danger" id="deleteButton" onclick="alert('Not implemented yet.')">Delete</button>
+                <div class="actions">
+                    <button class="btn btn-secondary" id="cancelButton" onclick="document.getElementById('edit-form').close()">Cancel</button>
                     <input class="btn btn-primary" id="saveButton" type="submit" form="actual-form" value="Save Changes">
                 </div>
             </div>
+								<div id="result" class="text-end"></div>
         </div>
 		<script>
 			console.log('perms', {{ spec.perms.write }})

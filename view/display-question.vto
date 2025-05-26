@@ -1,38 +1,25 @@
-{{ if params.question_id }}
-	{{ set my_game = {
-			player_name: 'test',
-			current_question: 0,
-			scores: '',
-			topic_name: 'TEST',
-			room_name: 'TEST',
-			difficulty: 'TEST',
-			questions: JSON.stringify([params.question_id]),
-		}
-	}}
-{{ else }}
-	{{ if params.next }}
-		{{ set buf = db.prepare('update player set current_question = current_question + 1 where player_id = ?')
-					.run(params.player_id)
-		}}
-	{{ /if }}
-
-	{{ set my_game = db.prepare(`
-			select 
-				player_name, 
-				current_question, 
-				scores, 
-				game_mode, 
-				topic_name, 
-				room_name, 
-				difficulty, 
-				topic_color,
-				questions
-			from player natural join game 
-			where player_id = ?
-		`)
-			.get(params.player_id)
+{{ if params.next }}
+	{{ set buf = db.prepare('update player set current_question = current_question + 1 where player_id = ?')
+		  	.run(params.player_id)
 	}}
 {{ /if }}
+
+{{ set my_game = db.prepare(`
+		select 
+			player_name, 
+			current_question, 
+			scores, 
+			game_mode, 
+			topic_name, 
+			room_name, 
+			difficulty, 
+			topic_color,
+			questions
+		from player natural join game 
+		where player_id = ?
+	`)
+		.get(params.player_id)
+}}
 
 {{ set full_question = db.prepare(`
 		select title, content, choices, hints, correct_choice, followup
@@ -103,7 +90,7 @@
 							<b class="fs-4">View Results</b>
 							<span class="material-symbols-outlined btn-arrow-icon">arrow_forward_ios</span>
 						</button>
-					{{ else if !params.question_id }}
+					{{ else }}
 						<button hx-get="display-question" 
 										hx-vals='{"player_id": {{ params.player_id }}, "next": true}'
 									  class="vi-btn btn-lg mb-2 " style="width:80%" type="button">
@@ -117,29 +104,25 @@
 		</div>
 	</div>
 	<script>
-			//@@@ I made this a var instead of const because it gets redefined by HTMX magic. Should find a better solution.
-			{{# var delay = t => new Promise(resolve => setTimeout(resolve, t)) #}}
+		const delay = t => new Promise(resolve => setTimeout(resolve, t))
+		
+		async function checkIfCorrect(e) {
+			const target = e.target.nodeName == 'BUTTON' ? e.target : e.target.parentNode
+			const choiceNo = target.dataset.idx
+			const isCorrect = choiceNo == "{{ full_question.correct_choice }}"
+			console.log('checkIfCorrect', target.nodeName, choiceNo, isCorrect)
 
-			
-			async function checkIfCorrect(e) {
-				const delay = t => new Promise(resolve => setTimeout(resolve, t))
-				const target = e.target.nodeName == 'BUTTON' ? e.target : e.target.parentNode
-				const choiceNo = target.dataset.idx
-				const isCorrect = choiceNo == "{{ full_question.correct_choice }}"
-				console.log('checkIfCorrect', target.nodeName, choiceNo, isCorrect)
-
-				target.classList.add('animate__animated', 'animate__pulse')
-					await delay(2000)
-				target.classList.add(isCorrect ? 'correct-btn' : 'wrong-btn')
-				if (isCorrect) {
-					target.querySelector('[data-correct]').hidden = false
-					await delay(1000)
-					document.querySelector('#followup').showModal()
-				}
-				else {
-					target.querySelector('[data-incorrect]').hidden = false
-				}
+            await delay(200)
+			target.classList.add(isCorrect ? 'correct-btn' : 'wrong-btn')
+			if (isCorrect) {
+				target.querySelector('[data-correct]').hidden = false
+				await delay(100)
+				document.querySelector('#followup').showModal()
 			}
+			else {
+				target.querySelector('[data-incorrect]').hidden = false
+			}
+		}
 	</script>
 </main>
 {{ /layout }}
