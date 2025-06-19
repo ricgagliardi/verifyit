@@ -52,6 +52,7 @@
         const gameId = hashRoomName(roomName);
         console.log(gameId);
         const role = "{{ params.role }}";
+        const currSetting = "{{ params.setting }}";
         let url = '';
         if (role === 'host') {
             url = '/choose-game-topic';
@@ -60,6 +61,7 @@
                 values: {
                 room_name: roomName,
                 mode: "multi-player",
+                setting: currSetting,
                 role: role,
                 game_id: gameId,
                 },
@@ -76,6 +78,7 @@
                 mode: "multi-player",
                 first_name: "{{ params.first_name }}",
                 last_name: "{{ params.last_name }}",
+                setting: currSetting,
                 role: role,
                 game_id: gameId,
                 player_id: playerId
@@ -85,5 +88,9 @@
             });
         }
     }
+  </script>
+  
+  <script>
+    console.log('Game mode setting:', '{{ params.setting }}');
   </script>
 </main>

@@ -36,6 +36,7 @@
       const firstName = document.getElementById("first-name").value;
       const lastName = document.getElementById("last-name").value;
       const mode = "{{ params.mode }}";
+      const currSetting = "{{ params.setting }}";
       const role = "{{ params.role }}";
       
       htmx.ajax('GET', '/enter-room-name', {
@@ -43,6 +44,7 @@
           first_name: firstName,
           last_name: lastName,
           mode: mode,
+          setting: currSetting,
           role: role
         },
         target: 'main',

@@ -1,48 +1,116 @@
 {{ layout "default.vto" }}
-<main style="background-color: #{{ params.topic_color }}">
-  <div class="position-relative p-5 text-center">
-    <h1>Your Score: {{ params.score }}</h1>
-    <button class="btn btn-lg mb-2" style="width:80%" type="button" onclick="playAgain({{ params.player_id }})">
-      <b class="fs-4">Play again</b>
-    </button>
-    <button class="btn btn-lg mb-2" style="width:80%" type="button" onclick="registerToVote()">
-      <b class="fs-4">Register to vote</b>
-      <span class="fs-6">Only takes around two minutes</span>
-    </button>
-    <button class="btn btn-lg mb-2" style="width:80%" type="button" onclick="joinLWV()">
-      <b class="fs-4">Join the LWV</b>
-      <span class="fs-6">Help empower other voters</span>
-    </button>
-    <button class="btn btn-lg mb-2" style="width:80%" type="button" onclick="donate()">
-      <b class="fs-4">Donate</b>
-      <span class="fs-6">Help keep VerifyIt! ad free</span>
-    </button>
+
+<main style="
+  background: linear-gradient(135deg, #f0f4f8 0%, #d9e2ec 100%);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+">
+  <div style="
+    background: #fff;
+    border-radius: 1rem;
+    padding: 2rem;
+    max-width: 380px;
+    width: 100%;
+    box-shadow: 0 0.75rem 2rem rgba(0,0,0,0.08);
+    text-align: center;
+  ">
+    <h1 style="
+      margin-bottom: 1.5rem;
+      font-weight: 600;
+      color: #1f2a44;
+    ">Your Score: {{ params.score }}</h1>
+
+    <div>
+      <button
+        style="
+          display: block;
+          width: 100%;
+          background-color: #0069d9;
+          color: white;
+          border: none;
+          border-radius: 0.75rem;
+          padding: 0.75rem;
+          font-size: 1.125rem;
+          margin-bottom: 1rem;
+          transition: transform 0.15s, box-shadow 0.15s;
+        "
+        onmouseover="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 0.75rem 1.5rem rgba(0,0,0,0.12)';"
+        onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none';"
+        onclick="window.location.href='/'"
+      >
+        Play again
+      </button>
+
+      <button
+        style="
+          display: block;
+          width: 100%;
+          background-color: #0069d9;
+          color: white;
+          border: none;
+          border-radius: 0.75rem;
+          padding: 0.75rem;
+          font-size: 1.125rem;
+          margin-bottom: 1rem;
+          transition: transform 0.15s, box-shadow 0.15s;
+        "
+        onmouseover="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 0.75rem 1.5rem rgba(0,0,0,0.12)';"
+        onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none';"
+        onclick="window.location.href='https://vote.gov'"
+      >
+        Register to vote
+        <span style="display:block; font-size:0.85rem; opacity:0.75; margin-top:0.25rem;">
+          Only takes around two minutes
+        </span>
+      </button>
+
+      <button
+        style="
+          display: block;
+          width: 100%;
+          background-color: #0069d9;
+          color: white;
+          border: none;
+          border-radius: 0.75rem;
+          padding: 0.75rem;
+          font-size: 1.125rem;
+          margin-bottom: 1rem;
+          transition: transform 0.15s, box-shadow 0.15s;
+        "
+        onmouseover="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 0.75rem 1.5rem rgba(0,0,0,0.12)';"
+        onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none';"
+        onclick="window.location.href='https://www.lwv.org/local-leagues/find-local-league'"
+      >
+        Join the LWV
+        <span style="display:block; font-size:0.85rem; opacity:0.75; margin-top:0.25rem;">
+          Help empower other voters
+        </span>
+      </button>
+
+      <button
+        style="
+          display: block;
+          width: 100%;
+          background-color: #0069d9;
+          color: white;
+          border: none;
+          border-radius: 0.75rem;
+          padding: 0.75rem;
+          font-size: 1.125rem;
+          transition: transform 0.15s, box-shadow 0.15s;
+        "
+        onmouseover="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 0.75rem 1.5rem rgba(0,0,0,0.12)';"
+        onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none';"
+        onclick="window.location.href='https://www.paypal.com/donate/?hosted_button_id=PYPXTBVB94URL&source=url'"
+      >
+        Donate
+        <span style="display:block; font-size:0.85rem; opacity:0.75; margin-top:0.25rem;">
+          Help keep VerifyIt! ad free
+        </span>
+      </button>
+    </div>
   </div>
-
-  <script>
-    function playAgain(player_id) {
-      htmx.ajax('GET', 'multiplayer-display-question', {
-        source: document.body,
-        swap: 'outerHTML',
-        values: {
-          player_id: player_id,
-          next: true,
-          score: 0
-        }
-      });
-    }
-
-    function registerToVote() {
-      // Add logic to register to vote
-    }
-
-    function joinLWV() {
-      // Add logic to join LWV
-    }
-
-    function donate() {
-      // Add logic to donate
-    }
-  </script>
 </main>
-{{ /layout }}

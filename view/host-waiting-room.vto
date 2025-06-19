@@ -1,6 +1,5 @@
 {{ layout "default.vto" }}
-{{set currentTime = (new Date()).toISOString()
-}}
+{{ set currentTime = (new Date()).toISOString() }}
 {{ set qs = db.prepare(`
     select json_group_array(qid) as q_list from (
       select question_id as qid
@@ -11,11 +10,10 @@
       limit 11
     )`).get(params.topic_name, params.difficulty)
 }}
-{{
-  set gameInsertResult = db.prepare(`
-        INSERT INTO game (game_id, game_mode, topic_name, room_name, location, difficulty, topic_color, start_time, end_time, questions)
-        VALUES (?, ?, ?, ?, NULL, ?, ?, ?, NULL, ?)`)
-        .run(params.game_id, params.mode, params.topic_name, params.room_name, params.difficulty, params.topic_color, currentTime, qs.q_list)
+{{ set gameInsertResult = db.prepare(`
+    INSERT INTO game (game_id, game_mode, topic_name, room_name, location, difficulty, topic_color, start_time, end_time, questions)
+    VALUES (?, ?, ?, ?, NULL, ?, ?, ?, NULL, ?)`)
+    .run(params.game_id, params.mode, params.topic_name, params.room_name, params.difficulty, params.topic_color, currentTime, qs.q_list)
 }}
 
 <main hx-target="main" hx-select="main" hx-swap="outerHTML">
@@ -41,34 +39,40 @@
       margin: 0 auto;
       display: block;
     }
+
+    #timer-bar-container {
+      height: 10px;
+      width: 100%;
+      background-color: #ddd;
+      display: none;
+    }
+
+    #timer-bar {
+      height: 100%;
+      width: 100%;
+      background-color: #FF5733;
+      transition: width 1s linear;
+    }
   </style>
+
   <div class="subnav">
     <div class="container-fluid" style="display: flex; align-items: center;">
-      <span
-        class="material-symbols-outlined btn-back"
-        style="cursor: pointer;"
-        onclick="window.history.back()"
-      >arrow_back_ios
-      </span>
+      <span class="material-symbols-outlined btn-back" style="cursor: pointer;" onclick="window.history.back()">arrow_back_ios</span>
       <h4 class="margin-auto">Room: {{ params.room_name }}</h4>
     </div>
   </div>
 
   <div class="position-relative p-5 text-center md-align-l">
+    <div id="timer-bar-container"><div id="timer-bar"></div></div>
 
     <style>
       .loading-symbol {
         font-size: 20px;
         animation: spin 1s linear infinite;
       }
-
       @keyframes spin {
-        0% {
-          transform: rotate(0deg);
-        }
-        100% {
-          transform: rotate(360deg);
-        }
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
       }
     </style>
 
@@ -78,7 +82,7 @@
     <h1 class="inter pb-4 md-align-l" id="game-status">Waiting for players</h1>
     <p id="players-joined-text">Share the room code below to participating players so they can join.</p>
 
-    <div class="d-grid gap-2 col-lg-6 mx-auto" >
+    <div class="d-grid gap-2 col-lg-6 mx-auto">
       <div style="background-color: #f7f7f7; border: 2px solid #F7DC6F; padding: 10px; width: 100%">
         <b>ROOM NAME</b>
         <p>{{ params.room_name }}</p>
@@ -87,7 +91,8 @@
         <button style="background-color: #fff; border: 1px solid #000; padding: 5px 10px;" onclick="shareLink()">Copy link</button>
       </div>
     </div>
-    <div class="d-grid gap-2 col-lg-6 mx-auto" >
+
+    <div class="d-grid gap-2 col-lg-6 mx-auto">
       <p id="players-count">0 players joined</p>
       <p id="current-standings-header" style="display: none;">Current Standings</p>
       <table id="players-table" class="table table-striped">
@@ -98,12 +103,14 @@
             <th id="current-question-header" style="display: none;">Current Question</th>
           </tr>
         </thead>
-        <tbody id="players-tbody">
-        </tbody>
+        <tbody id="players-tbody"></tbody>
       </table>
     </div>
+
     <button class="vi-btn btn-lg grey-btn align-middle mb-3" id="start-game-btn" disabled>Start game</button>
-    <button class="vi-btn btn-lg grey-btn align-middle mb-3" id="end-game-btn" style="display: none;">End game</button>
+    {{ if params.setting !== 'competitive' }}
+      <button class="vi-btn btn-lg grey-btn align-middle mb-3" id="end-game-btn" style="display: none;">End game</button>
+    {{ /if }}
   </div>
 
   <script>
@@ -112,70 +119,104 @@
     const sources = 'host';
     const wsUri = `${location.protocol == 'http:' ? 'ws' : 'wss'}://${location.host}?username=${username}&channels=${channels}&sources=${sources}`;
     const socket = new WebSocket(wsUri);
+    const isCompetitive = '{{ params.setting }}' === 'competitive';
 
-    socket.onopen = () => {
-      console.log('WebSocket connection established');
-    };
+    socket.onopen = () => console.log('WebSocket connection established');
+    socket.onclose = () => console.log('WebSocket connection closed');
 
-    socket.onclose = () => {
-      console.log('WebSocket connection closed');
-    };
+    let gameStarted = false;
+
+    function startTimerBar(duration) {
+      const timerBarContainer = document.getElementById('timer-bar-container');
+      const timerBar = document.getElementById('timer-bar');
+      timerBarContainer.style.display = 'block';
+      let timeLeft = duration;
+      const interval = setInterval(() => {
+        timeLeft--;
+        timerBar.style.width = `${(timeLeft / duration) * 100}%`;
+        if (timeLeft <= 0) {
+          clearInterval(interval);
+          socket.send(JSON.stringify({ message: 'End' }));
+          socket.close();
+
+          document.getElementById('game-status').textContent = 'Game concluded';
+          document.getElementById('timer-bar-container').style.display = 'none';
+
+          const loadingContainer = document.getElementById('loading-symbol-container');
+          loadingContainer.innerHTML = '<div style="background-color: #34C759; border: 1px solid #000; border-radius: 50%; width: 40px; height: 40px; display: flex; justify-content: center; align-items: center;"><span style="font-size: 20px; color: #000;" class="material-symbols-outlined">check</span></div>';
+
+          document.getElementById('players-joined-text')?.remove();
+          document.querySelector('.d-grid.gap-2.col-lg-6.mx-auto')?.remove();
+          document.getElementById('players-count')?.remove();
+
+          const standingsHeader = document.getElementById('current-standings-header');
+          standingsHeader.textContent = 'Final Standings';
+          standingsHeader.style.display = 'block';
+
+          const endBtn = document.getElementById('end-game-btn');
+          endBtn.textContent = 'Start a new game';
+          endBtn.style.display = 'block';
+          endBtn.onclick = shareLink;
+          endBtn.style.display = 'block';
+        }
+      }, 1000);
+    }
 
     function startGame() {
       socket.send(JSON.stringify({ message: 'Start', questions: {{ JSON.stringify(qs.q_list) }} }));
       document.getElementById('score-header').style.display = 'table-cell';
       document.getElementById('current-question-header').style.display = 'table-cell';
-      const scoreCells = document.querySelectorAll('#players-table tbody tr td:nth-child(2)');
-      scoreCells.forEach(cell => cell.style.display = 'table-cell');
-      const currentQuestionCells = document.querySelectorAll('#players-table tbody tr td:nth-child(3)');
-      currentQuestionCells.forEach(cell => cell.style.display = 'table-cell');
+      document.querySelectorAll('#players-table tbody tr td:nth-child(2)').forEach(cell => cell.style.display = 'table-cell');
+      document.querySelectorAll('#players-table tbody tr td:nth-child(3)').forEach(cell => cell.style.display = 'table-cell');
       document.getElementById('start-game-btn').style.display = 'none';
-      document.getElementById('end-game-btn').style.display = 'block';
+      if (!isCompetitive) document.getElementById('end-game-btn').style.display = 'block';
       document.getElementById('game-status').textContent = 'Game in progress';
       document.getElementById('current-standings-header').style.display = 'block';
-      const loadingSymbolContainer = document.getElementById('loading-symbol-container');
-      loadingSymbolContainer.innerHTML = '<span style="font-size: 20px;" class="material-symbols-outlined loading-symbol">autorenew</span>';
+      document.getElementById('loading-symbol-container').innerHTML = '<span style="font-size: 20px;" class="material-symbols-outlined loading-symbol">autorenew</span>';
+      if (isCompetitive) startTimerBar(60);
     }
-
-    let gameStarted = false;
 
     document.getElementById('start-game-btn').addEventListener('click', () => {
       startGame();
       gameStarted = true;
     });
 
-    document.getElementById('end-game-btn').addEventListener('click', () => {
-      socket.send(JSON.stringify({ message: 'End' }));
-      socket.close();
-      const loadingSymbolContainer = document.getElementById('loading-symbol-container');
-      loadingSymbolContainer.innerHTML = '<div style="background-color: #34C759; border: 1px solid #000; border-radius: 50%; width: 40px; height: 40px; display: flex; justify-content: center; align-items: center;"><span style="font-size: 20px; color: #000;" class="material-symbols-outlined">check</span></div>';
-    });
+    const endGameBtn = document.getElementById('end-game-btn');
+    if (endGameBtn) {
+      endGameBtn.addEventListener('click', () => {
+        socket.send(JSON.stringify({ message: 'End' }));
+        socket.close();
+
+        document.getElementById('game-status').textContent = 'Game concluded';
+
+        const loadingContainer = document.getElementById('loading-symbol-container');
+        loadingContainer.innerHTML = '<div style="background-color: #34C759; border: 1px solid #000; border-radius: 50%; width: 40px; height: 40px; display: flex; justify-content: center; align-items: center;"><span style="font-size: 20px; color: #000;" class="material-symbols-outlined">check</span></div>';
+
+        const endBtn = document.getElementById('end-game-btn');
+        endBtn.textContent = 'Start a new game';
+        endBtn.onclick = shareLink;
+      });
+    }
 
     socket.onmessage = (event) => {
       const data = JSON.parse(event.data);
       console.log('Received message:', event.data);
+      const tableBody = document.getElementById('players-tbody');
+
       if (data.message.includes(' ')) {
         const playerName = data.message;
-        const tableBody = document.getElementById('players-tbody');
         const row = document.createElement('tr');
-        const cell = document.createElement('td');
-        cell.textContent = playerName;
-        row.appendChild(cell);
-        const scoreCell = document.createElement('td');
-        scoreCell.style.display = gameStarted ? 'table-cell' : 'none';
-        scoreCell.textContent = '0';
-        row.appendChild(scoreCell);
-        const currentQuestionCell = document.createElement('td');
-        currentQuestionCell.style.display = gameStarted ? 'table-cell' : 'none';
-        currentQuestionCell.textContent = '1';
-        row.appendChild(currentQuestionCell);
+        row.innerHTML = `
+          <td>${playerName}</td>
+          <td style="display: ${gameStarted ? 'table-cell' : 'none'}">0</td>
+          <td style="display: ${gameStarted ? 'table-cell' : 'none'}">1</td>
+        `;
         tableBody.appendChild(row);
         document.getElementById('players-count').textContent = `${tableBody.children.length} player${tableBody.children.length === 1 ? '' : 's'} joined`;
-        
+
         if (tableBody.children.length >= 1) {
           document.getElementById('game-status').textContent = 'Game room is ready';
-          const loadingSymbolContainer = document.getElementById('loading-symbol-container');
-          loadingSymbolContainer.innerHTML = '<div style="background-color: #34C759; border: 1px solid #000; border-radius: 50%; width: 40px; height: 40px; display: flex; justify-content: center; align-items: center;"><span style="font-size: 20px; color: #000;" class="material-symbols-outlined">check</span></div>';
+          document.getElementById('loading-symbol-container').innerHTML = '<div style="background-color: #34C759; border: 1px solid #000; border-radius: 50%; width: 40px; height: 40px; display: flex; justify-content: center; align-items: center;"><span style="font-size: 20px; color: #000;" class="material-symbols-outlined">check</span></div>';
         }
 
         if (gameStarted) {
@@ -183,46 +224,40 @@
         } else {
           document.getElementById('start-game-btn').disabled = false;
         }
+
       } else {
-        const tableBody = document.getElementById('players-tbody');
-        const rows = tableBody.children;
-        for (let i = 0; i < rows.length; i++) {
-          if (rows[i].children[0].textContent === data.source) {
-            rows[i].children[1].textContent = data.message;
-            const currentQuestion = parseInt(rows[i].children[2].textContent);
-            if (currentQuestion < 10) {
-              rows[i].children[2].textContent = currentQuestion + 1;
-            } else {
-              rows[i].children[2].textContent = 'Finished';
-            }
+        const rows = Array.from(tableBody.children);
+        for (let row of rows) {
+          if (row.children[0].textContent === data.source) {
+            row.children[1].textContent = data.message;
+            const currentQ = parseInt(row.children[2].textContent);
+            row.children[2].textContent = currentQ < 10 ? currentQ + 1 : 'Finished';
           }
         }
-        const sortedRows = Array.from(rows).sort((a, b) => {
-          if (b.children[2].textContent === 'Finished' && a.children[2].textContent !== 'Finished') {
-            return 1;
-          } else if (a.children[2].textContent === 'Finished' && b.children[2].textContent !== 'Finished') {
-            return -1;
-          } else {
-            return parseInt(b.children[1].textContent) - parseInt(a.children[1].textContent);
-          }
+        const sorted = rows.sort((a, b) => {
+          const aQ = a.children[2].textContent;
+          const bQ = b.children[2].textContent;
+          if (bQ === 'Finished' && aQ !== 'Finished') return 1;
+          if (aQ === 'Finished' && bQ !== 'Finished') return -1;
+          return parseInt(b.children[1].textContent) - parseInt(a.children[1].textContent);
         });
         tableBody.innerHTML = '';
-        sortedRows.forEach(row => tableBody.appendChild(row));
+        sorted.forEach(row => tableBody.appendChild(row));
       }
     };
 
     function copyToClipboard(text) {
-      navigator.clipboard.writeText(text).then(() => {
-        console.log('Copied to clipboard');
-      });
+      navigator.clipboard.writeText(text).then(() => console.log('Game mode setting:', '{{ params.setting }}'));
     }
 
     function shareLink() {
       const link = `https://test.playverifyit.org/`;
-      navigator.clipboard.writeText(link).then(() => {
-        console.log('Shared link');
-      });
+      navigator.clipboard.writeText(link).then(() => console.log('Shared link'));
     }
+  </script>
+  
+  <script>
+    console.log('Game mode setting:', '{{ params.setting }}');
   </script>
 </main>
 {{ /layout }}

@@ -21,6 +21,7 @@
         <a hx-get="/enter-room-name"
             hx-vals='{
                 "mode": "{{ params.mode }}",
+                "setting": "{{ params.setting }}",
                 "role": "host"
             }'
             class="vi-btn btn-lg bg-white text-black" 
@@ -32,6 +33,7 @@
         <a hx-get="/enter-name"
             hx-vals='{
                 "mode": "{{ params.mode }}",
+                "setting": "{{ params.setting }}",
                 "role": "player"
             }'
             class="vi-btn btn-lg bg-white text-black" 
@@ -40,47 +42,8 @@
             <span class="material-symbols-outlined btn-arrow-icon">arrow_forward_ios</span><br>
         </a>
     </div>
-</div>
+  </div>
 </div>
 </main>
 
 {{ /layout }}
-
-
-
-
-{{# {{ layout "default.vto" }}
-<main hx-target="main" hx-select="main" hx-swap="outerHTML">
-<main style="background-color: #FFFFCC; height: 100vh; display: flex; flex-direction: column;">
-  <div class="subnav">
-    <div class="container-fluid" style="display: flex; align-items: center;">
-      <span 
-        class="material-symbols-outlined btn-back" 
-        style="cursor: pointer;"
-        onclick="window.history.back()"
-      >arrow_back_ios
-      </span>
-      <h4 class="margin-auto">Classroom</h4>
-    </div>
-  </div>
-  <div class="position-relative p-5 text-center md-align-l flex-grow-1">
-    <h1 class="inter pb-4 md-align-l">Choose a role</h1>
-    <div class="d-grid gap-2 col-lg-6 mx-auto">
-      <button hx-get="/enter-room-name" 
-              class="vi-btn btn-lg align-middle mb-3" 
-              style="padding: 0.5rem 1rem; background-color: #F7F7F7; border: 1px solid #000; border-radius: 1.5rem;" 
-              type="button">
-        <b class="fs-5">Start game as a host</b>
-        <span class="material-symbols-outlined btn-arrow-icon">arrow_forward_ios</span>
-      </button>
-      <button hx-get="/join-game-as-player" 
-              class="vi-btn btn-lg align-middle mb-3" 
-              style="padding: 0.5rem 1rem; background-color: #F7F7F7; border: 1px solid #000; border-radius: 1.5rem;" 
-              type="button">
-        <b class="fs-5">Join game as a player</b>
-        <span class="material-symbols-outlined btn-arrow-icon">arrow_forward_ios</span>
-      </button>
-    </div>
-  </div>
-</main>
-{{ /layout }} #}}

@@ -182,8 +182,15 @@
 					socket.send(JSON.stringify({ message: `${score}` }));
 					socket.close();
 					target.querySelector('[data-correct]').hidden = false;
-					await delay(100);
-					document.querySelector('#followup').showModal();
+					
+					{{ if params.setting === 'competitive' }}
+						await delay(100);
+						nextQuestion({{ params.player_id }});
+						return;
+					{{ else }}
+						await delay(100);
+						document.querySelector('#followup').showModal();
+					{{ /if }}
 				} else {
 					target.querySelector('[data-incorrect]').hidden = false;
 				}
@@ -198,7 +205,8 @@
 						values: {
 							player_id: player_id,
 							score: score,
-							topic_color: '{{ my_game.topic_color }}'
+							topic_color: '{{ my_game.topic_color }}',
+							setting: '{{ params.setting }}'
 						}
 					});
 				} else {
@@ -208,7 +216,8 @@
 						values: {
 							player_id: player_id,
 							next: true,
-							score: score
+							score: score,
+							setting: '{{ params.setting }}'
 						}
 					});
 				}
@@ -218,9 +227,12 @@
 				button.addEventListener('click', checkIfCorrect);
 			});
 
-			document.querySelector('#followup button').addEventListener('click', function() {
-				nextQuestion({{ params.player_id }});
-			});
+			const followupBtn = document.querySelector('#followup button');
+				if (followupBtn) {
+				followupBtn.addEventListener('click', function() {
+					nextQuestion({{ params.player_id }});
+				});
+			}
 		})();
 	</script>
 </main>
